@@ -12,10 +12,13 @@ db.once("open", () => {
 })
 
 const app = express();
-app.use(cors({
-    origin: "*",
-
-}))
+app.use((req, res, next) => {
+    //console.log("Acessou o Middleware!");
+    res.header("Access-Control-Allow-Origin", "*");
+    res.header("Access-Control-Allow-Methods", 'GET,PUT,POST,DELETE');
+    app.use(cors());
+    next();
+});
 app.use(express.json());
 app.use(bodyParser.urlencoded({ extended : false }));
 routes(app);
