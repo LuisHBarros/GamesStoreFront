@@ -2,14 +2,19 @@
   "name": "teste",
   "version": "1.0.0",
   "description": "",
-  "main": "index.js",
+  "main": "server.js",
   "scripts": {
     "dev": "nodemon server.js",
     "test": "echo \"Error: no test specified\" && exit 1",
     "start": "node src/server.js" 
   },
-  "keywords": [],
+  "keywords": [
+    "heroku"
+  ],
   "author": "",
+  "engines": {
+    "node": "16.x"
+  },
   "license": "ISC",
   "dependencies": {
     "@types/mercadopago": "^1.5.4",
