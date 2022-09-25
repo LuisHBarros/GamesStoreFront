@@ -1,8 +1,8 @@
 const User = require('../models/user');
+const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken')
 const authConfig = require("../config/auth")
 const crypto = require('crypto');
-var simplecrypt = require("simplecrypt");
 const mailer = require('../modules/mailer')
 const Blacklist = require('../models/blacklist')
 
@@ -10,9 +10,6 @@ const Blacklist = require('../models/blacklist')
         return jwt.sign(params, authConfig.secret,
             {expiresIn: 86400,})
     }
-
-
-    var sc = simplecrypt();
 module.exports = class userController {
 
 
@@ -23,16 +20,17 @@ module.exports = class userController {
                 return res.status(403).json({ message: "email already registered" })
 
 
-            const hashPassword = sc.encrypt(password);
-             if(adm === undefined) adm = false
-             const user = new User(
-                 {
-                     name, email, password: hashPassword, adm
-                 }
-             );
+            const salt = await bcrypt.genSalt(12)
+            const hashPassword = await bcrypt.hash(password, salt)
+            if(adm === undefined) adm = false
+            const user = new User(
+                {
+                    name, email, password: hashPassword, adm
+                }
+            );
             user.save()
 
-            return res.status(200).json({ user, token: generateToken({id: user.id}) })
+            return res.status(200).json({ user: user.name, token: generateToken({id: user.id}) })
         } catch (e) {
             return res.status(500).json({ message: e.message })
         }
@@ -43,12 +41,11 @@ module.exports = class userController {
         const user = await User.findOne( { email } ).select(`+password`);
         if(!user)
             return res.status(400).json({ error: "User not found" });
-            const cPassword = sc.decrypt(user.password)
-         if(cPassword !== password)
+        if(!await bcrypt.compare(password, user.password))
             return res.status(400).json({ error: "Invalid password"});
 
 
-        return res.status(201).json({ user, token: generateToken({id: user.id}) })
+        return res.status(201).json({ user:user.name, token: generateToken({id: user.id}) })
     }
 
     static forgotPassword = async (req, res) => {
@@ -88,7 +85,7 @@ module.exports = class userController {
     static recoverPassword = async (req, res) => {
         const { email, PasswordResetToken, password } = req.body;
         try {
-            
+
             const user = await User.findOne({ email: email })
                 .select('+passwordResetToken passwordResetExpires'); 
 
@@ -103,10 +100,9 @@ module.exports = class userController {
             if(user.passwordResetExpires < now)
                 return res.status(401).json({ error: "Token expired!"})
 
-            const salt = await getRandomBytes(32);
-            const hashPassword = sc.encrypt(password)
-
-             user.password = hashPassword;
+            const salt = await bcrypt.genSalt(12)
+            const hashPassword = await bcrypt.hash(password, salt)
+            user.password = hashPassword;
 
 
             user.passwordResetExpires = undefined;
@@ -130,7 +126,7 @@ module.exports = class userController {
             const tokenOnBlacklist = new Blacklist({ token })
             tokenOnBlacklist.save();
             return res.status(201).json({message: "Token removed successfully" })
-            
+
         } catch (e) {
             return res.status(500).json({ error: e.message });
         }
@@ -139,9 +135,9 @@ module.exports = class userController {
 
             User.findById(req.userId , async (err, user) =>{
                 if (err) return res.status(404).send({ error: err.message });
-            return res.status(200).json({ user: user });
+            return res.status(200).json({ user: user.name });
             })
-            
+
 
     }
 }
